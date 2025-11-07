@@ -12,7 +12,7 @@ import urllib.parse
 
 # Page configuration
 st.set_page_config(
-    page_title=" AI Company Scout - Multi-Sector Edition",
+    page_title=" AI Company Scout",
     page_icon="",
     layout="wide"
 )
@@ -490,8 +490,7 @@ If no private sector companies found, return: {{"companies": []}}"""
         return "\n".join(tsv_lines)
 
 def main():
-    st.title(" AI Company Scout - Multi-Sector Private Edition")
-    st.markdown("### Comprehensive Private Sector Project Discovery Across All Industries")
+    st.title(" AI Company Scout ")
     
     if not st.secrets.get("GROQ_API_KEY"):
         st.error("Groq API key required (free at https://console.groq.com)")
@@ -536,7 +535,7 @@ def main():
         - Multi-source hybrid search
         """)
     
-    st.header(" Multi-Sector Private Company Discovery")
+    st.header(" Company Discovery")
     
     if st.button(" Start Comprehensive Search", type="primary", use_container_width=True):
         if not selected_sectors:
