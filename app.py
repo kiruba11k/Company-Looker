@@ -12,8 +12,8 @@ import urllib.parse
 
 # Page configuration
 st.set_page_config(
-    page_title="🏢 AI Company Scout - Multi-Sector Edition",
-    page_icon="🔍",
+    page_title=" AI Company Scout - Multi-Sector Edition",
+    page_icon="",
     layout="wide"
 )
 
@@ -27,7 +27,7 @@ class MultiSectorCompanyScout:
         
         # Comprehensive sector list
         self.SECTORS = [
-            "airport", "port", "mall", "multiplex", "theatre", "hospital",
+            "mall", "multiplex", "theatre", "hospital",
             "it park", "technology park", "industrial park", "logistics park",
             "warehouse", "data centre", "stadium", "corporate campus", "office tower", "coworking",
             "manufacturing", "factory", "production facility", "industrial unit",
@@ -328,7 +328,7 @@ If no private sector companies found, return: {{"companies": []}}"""
         processed_count = 0
         for i, article in enumerate(articles):
             try:
-                status_text.text(f"🤖 Analyzing article {i+1}/{len(articles)}...")
+                status_text.text(f" Analyzing article {i+1}/{len(articles)}...")
                 progress_bar.progress((i + 1) / len(articles))
                 
                 content = article['content']
@@ -354,7 +354,7 @@ If no private sector companies found, return: {{"companies": []}}"""
                                 {"role": "system", "content": system_prompt},
                                 {"role": "user", "content": user_prompt}
                             ],
-                            model="mixtral-8x7b-32768",
+                            model="llama-3.1-70b-versatile",
                             temperature=0.1,
                             max_tokens=2000,  # Increased for comprehensive analysis
                             response_format={"type": "json_object"}
