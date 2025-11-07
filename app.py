@@ -12,8 +12,8 @@ import urllib.parse
 
 # Page configuration
 st.set_page_config(
-    page_title=" AI Company Scout - Multi-Sector Edition",
-    page_icon="",
+    page_title="🏢 AI Company Scout - Multi-Sector Edition",
+    page_icon="🔍",
     layout="wide"
 )
 
@@ -181,12 +181,12 @@ class MultiSectorCompanyScout:
         all_articles = []
         
         for term in search_terms:
-            st.info(f" Searching Google News for: {term}")
+            st.info(f"🔍 Searching Google News for: {term}")
             google_articles = self.search_google_news_rss(term, max_results_per_source)
             all_articles.extend(google_articles)
             time.sleep(1)
             
-            st.info(f" Searching DuckDuckGo for: {term}")
+            st.info(f"🔍 Searching DuckDuckGo for: {term}")
             ddg_articles = self.search_duckduckgo_news(term, max_results_per_source)
             all_articles.extend(ddg_articles)
             time.sleep(1)
@@ -237,6 +237,55 @@ class MultiSectorCompanyScout:
         
         return list(set(enhanced_queries))[:20]  # Limit to 20 unique queries
 
+    def display_found_articles(self, articles):
+        """Display all found articles in an organized way"""
+        if not articles:
+            st.warning("No articles found to display")
+            return
+        
+        st.header("📰 All Found Articles")
+        st.info(f"Total articles found: {len(articles)}")
+        
+        # Create a DataFrame for better display
+        articles_df = pd.DataFrame(articles)
+        
+        # Display articles in an expandable table
+        with st.expander("📋 View All Articles Details", expanded=True):
+            # Show summary statistics
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Total Articles", len(articles))
+            with col2:
+                sources = articles_df['source'].value_counts()
+                st.metric("Sources", len(sources))
+            with col3:
+                st.metric("Date Range", "Jan 2024 - Present")
+            
+            # Display sources breakdown
+            st.subheader("📊 Sources Breakdown")
+            source_counts = articles_df['source'].value_counts()
+            st.bar_chart(source_counts)
+            
+            # Display articles in a detailed table
+            st.subheader("📄 Article Details")
+            
+            # Create a formatted table with clickable links
+            display_df = articles_df[['title', 'source', 'date', 'link']].copy()
+            display_df['Article'] = display_df.apply(
+                lambda x: f'<a href="{x["link"]}" target="_blank">{x["title"][:80]}...</a>', 
+                axis=1
+            )
+            
+            # Use HTML to display clickable links
+            st.markdown(
+                display_df[['Article', 'source', 'date']].to_html(escape=False, index=False), 
+                unsafe_allow_html=True
+            )
+            
+            # Also show raw data for debugging
+            with st.expander("🔍 Raw Article Data (for debugging)"):
+                st.dataframe(articles_df[['title', 'source', 'date', 'link']], use_container_width=True)
+
     def extract_companies_with_enhanced_groq(self, articles):
         """Use Groq with enhanced prompts for better extraction"""
         if not articles:
@@ -279,7 +328,7 @@ If no private sector companies found, return: {{"companies": []}}"""
         processed_count = 0
         for i, article in enumerate(articles):
             try:
-                status_text.text(f" Analyzing article {i+1}/{len(articles)}...")
+                status_text.text(f"🤖 Analyzing article {i+1}/{len(articles)}...")
                 progress_bar.progress((i + 1) / len(articles))
                 
                 content = article['content']
@@ -305,7 +354,7 @@ If no private sector companies found, return: {{"companies": []}}"""
                                 {"role": "system", "content": system_prompt},
                                 {"role": "user", "content": user_prompt}
                             ],
-                            model="llama-3.1-70b-versatile",
+                            model="mixtral-8x7b-32768",
                             temperature=0.1,
                             max_tokens=2000,  # Increased for comprehensive analysis
                             response_format={"type": "json_object"}
@@ -357,7 +406,7 @@ If no private sector companies found, return: {{"companies": []}}"""
         status_text.empty()
         
         if processed_count > 0:
-            st.success(f" Successfully processed {processed_count} company entries")
+            st.success(f"✅ Successfully processed {processed_count} company entries")
         
         return extracted_data
 
@@ -441,18 +490,24 @@ If no private sector companies found, return: {{"companies": []}}"""
         return "\n".join(tsv_lines)
 
 def main():
-    st.title(" AI Company Scout - Multi-Sector Private Edition")
+    st.title("🏢 AI Company Scout - Multi-Sector Private Edition")
     st.markdown("### Comprehensive Private Sector Project Discovery Across All Industries")
     
     if not st.secrets.get("GROQ_API_KEY"):
-        st.error(" Groq API key required (free at https://console.groq.com)")
-
+        st.error("❌ Groq API key required (free at https://console.groq.com)")
+        st.info("""
+        **Get free API key:**
+        1. Go to https://console.groq.com
+        2. Sign up for free account  
+        3. Get your API key
+        4. Add to Streamlit secrets: `GROQ_API_KEY = "your_key"`
+        """)
         return
     
     scout = MultiSectorCompanyScout()
     
     with st.sidebar:
-        st.header(" Search Configuration")
+        st.header("⚙️ Search Configuration")
         
         st.subheader("Project Types")
         project_types = st.multiselect(
@@ -481,36 +536,39 @@ def main():
         - Multi-source hybrid search
         """)
     
-    st.header("Multi-Sector Private Company Discovery")
+    st.header("🚀 Multi-Sector Private Company Discovery")
     
-    if st.button(" Start Comprehensive Search", type="primary", use_container_width=True):
+    if st.button("🎯 Start Comprehensive Search", type="primary", use_container_width=True):
         if not selected_sectors:
-            st.error(" Please select at least one sector")
+            st.error("❌ Please select at least one sector")
             return
             
         if not project_types:
-            st.error(" Please select at least one project type")
+            st.error("❌ Please select at least one project type")
             return
         
         # Generate targeted search queries
         search_queries = scout.get_search_queries(selected_sectors, project_types)
         
-        st.info(f" Using {len(search_queries)} targeted queries across {len(selected_sectors)} sectors")
+        st.info(f"🔍 Using {len(search_queries)} targeted queries across {len(selected_sectors)} sectors")
         
-        with st.spinner(" Comprehensive multi-source search in progress..."):
+        with st.spinner("🌐 Comprehensive multi-source search in progress..."):
             # Perform hybrid search
             articles = scout.hybrid_search(search_queries, max_per_source)
             
             if not articles:
                 st.error("""
-                 No articles found. Possible issues:
+                ❌ No articles found. Possible issues:
                 - Internet connectivity
                 - Search engines temporarily unavailable
                 - Try different sectors or reduce query complexity
                 """)
                 return
             
-            st.success(f" Found {len(articles)} articles from multiple sources",articles[:])
+            st.success(f"📰 Found {len(articles)} articles from multiple sources")
+            
+            # Display ALL found articles before AI analysis
+            scout.display_found_articles(articles)
             
             # Show search summary
             col1, col2 = st.columns(2)
@@ -521,13 +579,17 @@ def main():
                 ddg_count = len([a for a in articles if a['source'] == 'DuckDuckGo'])
                 st.metric("DuckDuckGo", ddg_count)
         
-        with st.spinner(" AI analyzing for private sector companies..."):
+        # Add a separator before AI analysis
+        st.markdown("---")
+        st.header("🤖 AI Analysis Phase")
+        
+        with st.spinner("🤖 AI analyzing for private sector companies..."):
             # Extract companies using enhanced Groq processing
             companies_data = scout.extract_companies_with_enhanced_groq(articles[:max_articles])
             
             if not companies_data:
                 st.error("""
-                 No private sector companies extracted. This could mean:
+                ❌ No private sector companies extracted. This could mean:
                 - Articles are about government projects
                 - News doesn't contain specific company information
                 - Try expanding sector selection
@@ -538,7 +600,7 @@ def main():
             # Filter and rank companies
             ranked_companies = scout.filter_and_rank_companies(companies_data)
             
-            st.success(f"Found {len(ranked_companies)} private sector companies across {len(set(c['Sector'] for c in ranked_companies))} sectors!")
+            st.success(f" Found {len(ranked_companies)} private sector companies across {len(set(c['Sector'] for c in ranked_companies))} sectors!")
         
         # Display comprehensive results
         st.header(" Private Sector Discovery Results")
@@ -563,12 +625,12 @@ def main():
                 sector = company['Sector']
                 sectors_count[sector] = sectors_count.get(sector, 0) + 1
             
-            st.subheader("Sector Distribution")
+            st.subheader(" Sector Distribution")
             sector_df = pd.DataFrame(list(sectors_count.items()), columns=['Sector', 'Count'])
             st.bar_chart(sector_df.set_index('Sector'))
         
         # Company details table
-        st.subheader("Company Details (Private Sector Only)")
+        st.subheader(" Company Details (Private Sector Only)")
         df = pd.DataFrame(ranked_companies)
         
         # Enhanced color coding
@@ -654,7 +716,7 @@ def main():
     else:
         # Enhanced instructions
         st.markdown("""
-   
+      
         """)
 
 if __name__ == "__main__":
