@@ -305,7 +305,7 @@ If no private sector companies found, return: {{"companies": []}}"""
                                 {"role": "system", "content": system_prompt},
                                 {"role": "user", "content": user_prompt}
                             ],
-                            model="mixtral-8x7b-32768",
+                            model="llama-3.1-70b-versatile",
                             temperature=0.1,
                             max_tokens=2000,  # Increased for comprehensive analysis
                             response_format={"type": "json_object"}
@@ -510,7 +510,7 @@ def main():
                 """)
                 return
             
-            st.success(f" Found {len(articles)} articles from multiple sources")
+            st.success(f" Found {len(articles)} articles from multiple sources",articles[:])
             
             # Show search summary
             col1, col2 = st.columns(2)
