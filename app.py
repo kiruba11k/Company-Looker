@@ -542,7 +542,7 @@ def main():
             st.metric("Brownfield", brownfield_count)
         
         # Sector distribution
-        if ranked_companies:0
+        if ranked_companies:
             sectors_count = {}
             for company in ranked_companies:
                 sector = company['Sector']
