@@ -90,13 +90,14 @@ class MultiSectorCompanyScout:
                     # Clean HTML tags from description
                     description = re.sub(r'<[^>]+>', '', description)
                     
+                    # Ensure all fields are strings
                     articles.append({
-                        'title': title,
-                        'link': link,
-                        'description': description,
+                        'title': str(title) if title else 'No Title',
+                        'link': str(link) if link else '',
+                        'description': str(description) if description else '',
                         'source': 'Google News',
-                        'date': pub_date,
-                        'content': f"{title}. {description}"
+                        'date': str(pub_date) if pub_date else '2024+',
+                        'content': f"{title}. {description}" if title and description else str(title) if title else 'No content'
                     })
                 
                 return articles
@@ -149,12 +150,12 @@ class MultiSectorCompanyScout:
                             # Only include valid news links
                             if link and any(domain in link for domain in ['.com', '.in', '.org', '.net', '.co']):
                                 articles.append({
-                                    'title': title,
-                                    'link': link,
-                                    'description': snippet,
+                                    'title': str(title) if title else 'No Title',
+                                    'link': str(link) if link else '',
+                                    'description': str(snippet) if snippet else '',
                                     'source': 'DuckDuckGo',
                                     'date': '2024+',
-                                    'content': f"{title}. {snippet}"
+                                    'content': f"{title}. {snippet}" if title and snippet else str(title) if title else 'No content'
                                 })
                     except Exception:
                         continue
@@ -199,12 +200,12 @@ class MultiSectorCompanyScout:
                             date = time_elem.text.strip() if time_elem else "2024+"
                             
                             articles.append({
-                                'title': title,
-                                'link': link,
-                                'description': description,
-                                'source': source,
-                                'date': date,
-                                'content': f"{title}. {description}"
+                                'title': str(title) if title else 'No Title',
+                                'link': str(link) if link else '',
+                                'description': str(description) if description else '',
+                                'source': str(source) if source else 'Bing News',
+                                'date': str(date) if date else '2024+',
+                                'content': f"{title}. {description}" if title and description else str(title) if title else 'No content'
                             })
                     except Exception:
                         continue
@@ -242,12 +243,12 @@ class MultiSectorCompanyScout:
                             description = description_elem.text.strip() if description_elem else ""
                             
                             articles.append({
-                                'title': title,
-                                'link': link,
-                                'description': description,
+                                'title': str(title) if title else 'No Title',
+                                'link': str(link) if link else '',
+                                'description': str(description) if description else '',
                                 'source': 'Yahoo News',
                                 'date': '2024+',
-                                'content': f"{title}. {description}"
+                                'content': f"{title}. {description}" if title and description else str(title) if title else 'No content'
                             })
                     except Exception:
                         continue
@@ -270,12 +271,12 @@ class MultiSectorCompanyScout:
                 # Check if query terms are in title or summary
                 if any(term.lower() in (entry.title + ' ' + entry.summary).lower() for term in query.split()):
                     articles.append({
-                        'title': entry.title,
-                        'link': entry.link,
-                        'description': entry.summary,
+                        'title': str(entry.title) if hasattr(entry, 'title') else 'No Title',
+                        'link': str(entry.link) if hasattr(entry, 'link') else '',
+                        'description': str(entry.summary) if hasattr(entry, 'summary') else '',
                         'source': 'Reuters',
-                        'date': entry.published if hasattr(entry, 'published') else '2024+',
-                        'content': f"{entry.title}. {entry.summary}"
+                        'date': str(entry.published) if hasattr(entry, 'published') else '2024+',
+                        'content': f"{entry.title}. {entry.summary}" if hasattr(entry, 'title') and hasattr(entry, 'summary') else str(entry.title) if hasattr(entry, 'title') else 'No content'
                     })
             
             return articles
@@ -313,12 +314,12 @@ class MultiSectorCompanyScout:
                             description = description_elem.text.strip() if description_elem else ""
                             
                             articles.append({
-                                'title': title,
-                                'link': link,
-                                'description': description,
+                                'title': str(title) if title else 'No Title',
+                                'link': str(link) if link else '',
+                                'description': str(description) if description else '',
                                 'source': 'PR Newswire',
                                 'date': '2024+',
-                                'content': f"{title}. {description}"
+                                'content': f"{title}. {description}" if title and description else str(title) if title else 'No content'
                             })
                     except Exception:
                         continue
@@ -358,12 +359,12 @@ class MultiSectorCompanyScout:
                             description = description_elem.text.strip() if description_elem else ""
                             
                             articles.append({
-                                'title': title,
-                                'link': link,
-                                'description': description,
+                                'title': str(title) if title else 'No Title',
+                                'link': str(link) if link else '',
+                                'description': str(description) if description else '',
                                 'source': 'Business Wire',
                                 'date': '2024+',
-                                'content': f"{title}. {description}"
+                                'content': f"{title}. {description}" if title and description else str(title) if title else 'No content'
                             })
                     except Exception:
                         continue
@@ -417,12 +418,12 @@ class MultiSectorCompanyScout:
                             source = source_elem.text.strip() if source_elem else "Indian Business"
                             
                             articles.append({
-                                'title': title,
-                                'link': link,
-                                'description': description,
-                                'source': source,
+                                'title': str(title) if title else 'No Title',
+                                'link': str(link) if link else '',
+                                'description': str(description) if description else '',
+                                'source': str(source) if source else 'Indian Business',
                                 'date': '2024+',
-                                'content': f"{title}. {description}"
+                                'content': f"{title}. {description}" if title and description else str(title) if title else 'No content'
                             })
                     except Exception:
                         continue
@@ -478,7 +479,13 @@ class MultiSectorCompanyScout:
         seen_articles = set()
         unique_articles = []
         for article in all_articles:
-            article_key = f"{article['title'][:100]}_{article['link']}"
+            # Ensure article has required fields
+            if not article.get('title'):
+                article['title'] = 'No Title'
+            if not article.get('link'):
+                article['link'] = ''
+            
+            article_key = f"{str(article['title'])[:100]}_{article['link']}"
             if article_key not in seen_articles:
                 seen_articles.add(article_key)
                 unique_articles.append(article)
@@ -553,13 +560,24 @@ class MultiSectorCompanyScout:
             # Display articles in a detailed table
             st.subheader(" Article Details")
             
-            # Create a simplified display
+            # Create a simplified display with proper error handling
             for i, article in enumerate(articles):
-                with st.expander(f"{i+1}. {article['title'][:100]}...", key=f"article_{i}"):
-                    st.write(f"**Source:** {article['source']}")
-                    st.write(f"**Date:** {article['date']}")
-                    st.write(f"**Description:** {article['description']}")
-                    st.write(f"**Link:** [Read Article]({article['link']})")
+                try:
+                    # Safely get title and ensure it's a string
+                    title = str(article.get('title', 'No Title'))
+                    if len(title) > 100:
+                        display_title = title[:100] + "..."
+                    else:
+                        display_title = title
+                    
+                    with st.expander(f"{i+1}. {display_title}", key=f"article_{i}"):
+                        st.write(f"**Source:** {article.get('source', 'Unknown')}")
+                        st.write(f"**Date:** {article.get('date', 'Unknown')}")
+                        st.write(f"**Description:** {article.get('description', 'No description available')}")
+                        st.write(f"**Link:** [Read Article]({article.get('link', '')})")
+                except Exception as e:
+                    st.warning(f"Error displaying article {i+1}: {str(e)}")
+                    continue
 
     def extract_companies_with_enhanced_groq(self, articles, start_index=0, end_index=None):
         """Use Groq with enhanced prompts for better extraction including timeline details"""
@@ -623,14 +641,14 @@ If no private sector companies found, return: {{"companies": []}}"""
                 status_text.text(f" Analyzing article {start_index + i + 1}/{end_index}...")
                 progress_bar.progress((i + 1) / len(articles_to_analyze))
                 
-                content = article['content']
+                content = article.get('content', '')
                 if len(content) > 2500:  # Slightly reduced for better token usage
                     content = content[:2500]
                 
                 user_prompt = f"""
                 Analyze this Indian business news article for PRIVATE SECTOR companies with construction/expansion projects:
 
-                TITLE: {article['title']}
+                TITLE: {article.get('title', 'No Title')}
                 CONTENT: {content}
 
                 Extract ALL private sector companies. Focus on companies in: {', '.join(self.SECTORS)}.
@@ -673,17 +691,17 @@ If no private sector companies found, return: {{"companies": []}}"""
                             company.get('is_private_sector', False)):
                             
                             extracted_data.append({
-                                'Company Name': company['company_name'],
-                                'Source Link': article['link'],
-                                'Core Intent': company.get('core_intent', 'Private Sector Project'),
-                                'Stage': company.get('stage', 'Under Development'),
-                                'Detailed Timeline': company.get('detailed_timeline', 'Timeline not specified'),
-                                'Project Type': company.get('project_type', 'Unknown'),
-                                'Sector': company.get('sector', 'Private Sector'),
-                                'Confidence': company.get('confidence', 'medium'),
-                                'Article Title': article['title'],
-                                'Source': article['source'],
-                                'Date': article.get('date', '2024+'),
+                                'Company Name': str(company['company_name']),
+                                'Source Link': article.get('link', ''),
+                                'Core Intent': str(company.get('core_intent', 'Private Sector Project')),
+                                'Stage': str(company.get('stage', 'Under Development')),
+                                'Detailed Timeline': str(company.get('detailed_timeline', 'Timeline not specified')),
+                                'Project Type': str(company.get('project_type', 'Unknown')),
+                                'Sector': str(company.get('sector', 'Private Sector')),
+                                'Confidence': str(company.get('confidence', 'medium')),
+                                'Article Title': str(article.get('title', 'No Title')),
+                                'Source': str(article.get('source', 'Unknown')),
+                                'Date': str(article.get('date', '2024+')),
                                 'Private Sector': company.get('is_private_sector', True)
                             })
                             processed_count += 1
@@ -726,17 +744,17 @@ If no private sector companies found, return: {{"companies": []}}"""
                 score += 2
             
             # Lead signal matching in stage
-            stage = company['Stage'].lower()
+            stage = str(company['Stage']).lower()
             if any(signal in stage for signal in self.LEAD_SIGNALS):
                 score += 2
             
             # Timeline scoring - higher score for specific timelines
-            timeline = company.get('Detailed Timeline', '').lower()
+            timeline = str(company.get('Detailed Timeline', '')).lower()
             if any(time_indicator in timeline for time_indicator in ['2024', '2025', 'q1', 'q2', 'q3', 'q4', 'january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december']):
                 score += 2
             
             # Sector priority (higher scores for key sectors)
-            sector = company['Sector'].lower()
+            sector = str(company['Sector']).lower()
             high_priority_sectors = ['manufacturing', 'warehouse', 'logistics park', 'data centre', 'industrial park']
             medium_priority_sectors = ['hospital', 'it park', 'corporate campus', 'office tower']
             
@@ -760,7 +778,7 @@ If no private sector companies found, return: {{"companies": []}}"""
         seen_companies = set()
         unique_companies = []
         for company in companies:
-            company_key = f"{company['Company Name'].lower().strip()}_{company['Core Intent'][:30]}"
+            company_key = f"{str(company['Company Name']).lower().strip()}_{str(company['Core Intent'])[:30]}"
             if company_key not in seen_companies:
                 seen_companies.add(company_key)
                 unique_companies.append(company)
@@ -836,7 +854,7 @@ def main():
         selected_sources = st.multiselect(
             "Select News Sources:",
             list(scout.NEWS_SOURCES.keys()),
-            default=list(scout.NEWS_SOURCES.keys())[:4]  # Default to first 4 sources
+            default=['Google News', 'DuckDuckGo', 'Bing News']  # Simplified default
         )
         
         st.subheader(" Search Settings")
@@ -844,14 +862,10 @@ def main():
         
         st.info("""
         **Enhanced Features:**
-        - 8+ news sources including press release sites
+        - Multiple news sources including press release sites
         - Range-based article analysis
         - Detailed timeline extraction (months/years)
-        - 40+ private sector categories
-        - 25+ lead signal detection
-        - Date range: Jan 2024 onwards
         - Private sector focus only
-        - Multi-source hybrid search
         """)
     
     st.header(" Company Discovery")
@@ -945,8 +959,13 @@ def main():
         with st.expander(" Quick Articles Preview", expanded=True):
             st.info(f"Showing first 10 of {len(articles)} articles. Use the analysis range below to select which articles to analyze.")
             for i, article in enumerate(articles[:10]):
-                st.write(f"**{i+1}. {article['title'][:100]}...**")
-                st.caption(f"Source: {article['source']} | Date: {article['date']}")
+                title = str(article.get('title', 'No Title'))
+                if len(title) > 100:
+                    display_title = title[:100] + "..."
+                else:
+                    display_title = title
+                st.write(f"**{i+1}. {display_title}**")
+                st.caption(f"Source: {article.get('source', 'Unknown')} | Date: {article.get('date', 'Unknown')}")
         
         # Add a separator before AI analysis
         st.markdown("---")
@@ -956,7 +975,7 @@ def main():
         st.subheader(" Article Analysis Range")
         total_articles = len(articles)
         
-        st.info(f"Total articles available: **{total_articles}**")
+        st.info(f" Total articles available: **{total_articles}**")
         
         col1, col2 = st.columns(2)
         with col1:
@@ -994,7 +1013,7 @@ def main():
                     
                     if not companies_data:
                         st.error("""
-                         No private sector companies extracted. This could mean:
+                        ❌ No private sector companies extracted. This could mean:
                         - Articles are about government projects
                         - News doesn't contain specific company information
                         - Try expanding sector selection
@@ -1006,7 +1025,7 @@ def main():
                         st.session_state.ranked_companies = ranked_companies
                         st.session_state.analysis_complete = True
                         
-                        st.success(f" Found {len(ranked_companies)} private sector companies across {len(set(c['Sector'] for c in ranked_companies))} sectors!")
+                        st.success(f"🎉 Found {len(ranked_companies)} private sector companies!")
                         
                         # Rerun to show results
                         st.rerun()
@@ -1031,17 +1050,6 @@ def main():
             brownfield_count = len([c for c in ranked_companies if c['Project Type'] == 'Brownfield'])
             st.metric("Brownfield", brownfield_count)
         
-        # Sector distribution
-        if ranked_companies:
-            sectors_count = {}
-            for company in ranked_companies:
-                sector = company['Sector']
-                sectors_count[sector] = sectors_count.get(sector, 0) + 1
-            
-            st.subheader(" Sector Distribution")
-            sector_df = pd.DataFrame(list(sectors_count.items()), columns=['Sector', 'Count'])
-            st.bar_chart(sector_df.set_index('Sector'))
-        
         # Company details table
         st.subheader(" Company Details (Private Sector Only)")
         df = pd.DataFrame(ranked_companies)
@@ -1062,12 +1070,6 @@ def main():
             else:
                 return 'color: red'
         
-        def color_sector(val):
-            priority_sectors = ['manufacturing', 'warehouse', 'data centre', 'logistics park']
-            if any(priority in val.lower() for priority in priority_sectors):
-                return 'background-color: #FFD700; color: black; font-weight: bold;'
-            return ''
-        
         def color_timeline(val):
             if any(time_indicator in str(val).lower() for time_indicator in ['2024', '2025', 'q1', 'q2', 'q3', 'q4']):
                 return 'background-color: #ADD8E6; color: black; font-weight: bold;'
@@ -1075,7 +1077,6 @@ def main():
         
         styled_df = df.style.map(color_confidence, subset=['Confidence'])\
                           .map(color_project_type, subset=['Project Type'])\
-                          .map(color_sector, subset=['Sector'])\
                           .map(color_timeline, subset=['Detailed Timeline'])
         
         st.dataframe(
@@ -1108,30 +1109,6 @@ def main():
             mime="text/tab-separated-values",
             use_container_width=True
         )
-        
-        # Business insights
-        if ranked_companies:
-            st.header(" Business Insights")
-            
-            # Top companies by relevance
-            top_companies = ranked_companies[:5]
-            
-            st.subheader(" Top 5 Private Sector Prospects")
-            for i, company in enumerate(top_companies):
-                with st.expander(f"{i+1}. {company['Company Name']} - {company['Sector']}"):
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.write(f"**Project:** {company['Core Intent']}")
-                        st.write(f"**Type:** {company['Project Type']}")
-                        st.write(f"**Stage:** {company['Stage']}")
-                        st.write(f"**Timeline:** {company.get('Detailed Timeline', 'Not specified')}")
-                    with col2:
-                        st.write(f"**Confidence:** {company['Confidence']}")
-                        st.write(f"**Relevance Score:** {company['Relevance Score']}/10")
-                        st.write(f"**Source:** [View Article]({company['Source Link']})")
-                    
-                    # WiFi sales insight
-                    st.info(f"**WiFi Opportunity:** {company['Company Name']} is perfect for your {company['Project Type'].lower()} WiFi solutions in the {company['Sector']} sector. Timeline: {company.get('Detailed Timeline', 'To be determined')}")
         
         # Reset button
         if st.button(" Start New Search", type="secondary"):
