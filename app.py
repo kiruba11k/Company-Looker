@@ -533,7 +533,7 @@ class MultiSectorCompanyScout:
         articles_df = pd.DataFrame(articles)
         
         # Display articles in an expandable table
-        with st.expander(" View All Articles Details", expanded=True):
+        with st.expander(" View All Articles Details", expanded=False):
             # Show summary statistics
             col1, col2, col3 = st.columns(3)
             with col1:
@@ -547,27 +547,19 @@ class MultiSectorCompanyScout:
             # Display sources breakdown
             st.subheader(" Sources Breakdown")
             source_counts = articles_df['source'].value_counts()
-            st.bar_chart(source_counts)
+            if not source_counts.empty:
+                st.bar_chart(source_counts)
             
             # Display articles in a detailed table
             st.subheader(" Article Details")
             
-            # Create a formatted table with clickable links
-            display_df = articles_df[['title', 'source', 'date', 'link']].copy()
-            display_df['Article'] = display_df.apply(
-                lambda x: f'<a href="{x["link"]}" target="_blank">{x["title"][:80]}...</a>', 
-                axis=1
-            )
-            
-            # Use HTML to display clickable links
-            st.markdown(
-                display_df[['Article', 'source', 'date']].to_html(escape=False, index=False), 
-                unsafe_allow_html=True
-            )
-            
-            # Also show raw data for debugging
-            with st.expander(" Raw Article Data (for debugging)"):
-                st.dataframe(articles_df[['title', 'source', 'date', 'link']], use_container_width=True)
+            # Create a simplified display
+            for i, article in enumerate(articles):
+                with st.expander(f"{i+1}. {article['title'][:100]}...", key=f"article_{i}"):
+                    st.write(f"**Source:** {article['source']}")
+                    st.write(f"**Date:** {article['date']}")
+                    st.write(f"**Description:** {article['description']}")
+                    st.write(f"**Link:** [Read Article]({article['link']})")
 
     def extract_companies_with_enhanced_groq(self, articles, start_index=0, end_index=None):
         """Use Groq with enhanced prompts for better extraction including timeline details"""
@@ -798,7 +790,7 @@ If no private sector companies found, return: {{"companies": []}}"""
         return "\n".join(tsv_lines)
 
 def main():
-    st.title(" AI Company Scout ")
+    st.title(" AI Company Scout")
     
     # Initialize session state
     if 'articles' not in st.session_state:
@@ -811,7 +803,7 @@ def main():
         st.session_state.ranked_companies = None
     
     if not st.secrets.get("GROQ_API_KEY"):
-        st.error("Groq API key required (free at https://console.groq.com)")
+        st.error(" Groq API key required (free at https://console.groq.com)")
         st.info("""
         **Get free API key:**
         1. Go to https://console.groq.com
@@ -826,28 +818,28 @@ def main():
     with st.sidebar:
         st.header(" Search Configuration")
         
-        st.subheader("Project Types")
+        st.subheader(" Project Types")
         project_types = st.multiselect(
             "Select Project Types:",
             ["Greenfield Projects", "Brownfield Projects"],
             default=["Greenfield Projects", "Brownfield Projects"]
         )
         
-        st.subheader("Target Sectors")
+        st.subheader(" Target Sectors")
         selected_sectors = st.multiselect(
             "Select Sectors (Private Sector Focus):",
             scout.SECTORS,
             default=["manufacturing", "warehouse", "hospital", "it park", "logistics park"]
         )
         
-        st.subheader("News Sources")
+        st.subheader(" News Sources")
         selected_sources = st.multiselect(
             "Select News Sources:",
             list(scout.NEWS_SOURCES.keys()),
             default=list(scout.NEWS_SOURCES.keys())[:4]  # Default to first 4 sources
         )
         
-        st.subheader("Search Settings")
+        st.subheader(" Search Settings")
         max_per_source = st.slider("Results per Search", 5, 20, 10)
         
         st.info("""
@@ -864,19 +856,19 @@ def main():
     
     st.header(" Company Discovery")
     
-    # Search section
-    if not st.session_state.search_complete:
+    # Search section - ALWAYS show if we have articles or not
+    if st.session_state.articles is None or not st.session_state.search_complete:
         if st.button(" Start Comprehensive Search", type="primary", use_container_width=True):
             if not selected_sectors:
                 st.error(" Please select at least one sector")
                 return
                 
             if not project_types:
-                st.error("Please select at least one project type")
+                st.error(" Please select at least one project type")
                 return
             
             if not selected_sources:
-                st.error("Please select at least one news source")
+                st.error(" Please select at least one news source")
                 return
             
             # Generate targeted search queries
@@ -900,6 +892,8 @@ def main():
                 # Store articles in session state
                 st.session_state.articles = articles
                 st.session_state.search_complete = True
+                st.session_state.analysis_complete = False
+                st.session_state.ranked_companies = None
                 
                 st.success(f" Found {len(articles)} articles from {len(selected_sources)} sources")
                 
@@ -919,15 +913,50 @@ def main():
             # Rerun to show the analysis section
             st.rerun()
     
-    # Show analysis section if search is complete
+    # ALWAYS show search results if we have articles
     if st.session_state.search_complete and st.session_state.articles is not None:
+        articles = st.session_state.articles
+        
+        # Show search results summary (always visible during analysis phase)
+        st.header(" Search Results Summary")
+        
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("Total Articles", len(articles))
+        with col2:
+            source_counts = pd.DataFrame(articles)['source'].value_counts()
+            st.metric("Sources Used", len(source_counts))
+        with col3:
+            st.metric("Date Range", "Jan 2024+")
+        with col4:
+            if st.session_state.ranked_companies:
+                st.metric("Companies Found", len(st.session_state.ranked_companies))
+            else:
+                st.metric("Ready for Analysis", "✓")
+        
+        # Show sources breakdown
+        st.subheader(" Sources Breakdown")
+        source_df = pd.DataFrame(articles)
+        if not source_df.empty and 'source' in source_df.columns:
+            source_counts = source_df['source'].value_counts()
+            st.bar_chart(source_counts)
+        
+        # Quick articles preview
+        with st.expander(" Quick Articles Preview", expanded=True):
+            st.info(f"Showing first 10 of {len(articles)} articles. Use the analysis range below to select which articles to analyze.")
+            for i, article in enumerate(articles[:10]):
+                st.write(f"**{i+1}. {article['title'][:100]}...**")
+                st.caption(f"Source: {article['source']} | Date: {article['date']}")
+        
         # Add a separator before AI analysis
         st.markdown("---")
-        st.header("🤖 AI Analysis Phase")
+        st.header(" AI Analysis Phase")
         
         # Range selection for article analysis
         st.subheader(" Article Analysis Range")
-        total_articles = len(st.session_state.articles)
+        total_articles = len(articles)
+        
+        st.info(f"Total articles available: **{total_articles}**")
         
         col1, col2 = st.columns(2)
         with col1:
@@ -936,7 +965,7 @@ def main():
                 min_value=0, 
                 max_value=total_articles-1, 
                 value=0,
-                help="Starting index of articles to analyze"
+                help="Starting index of articles to analyze (0 = first article)"
             )
         with col2:
             end_index = st.number_input(
@@ -948,17 +977,17 @@ def main():
             )
         
         if start_index >= end_index:
-            st.error("Start index must be less than end index")
+            st.error(" Start index must be less than end index")
         else:
             articles_to_analyze = end_index - start_index
-            st.info(f"Will analyze {articles_to_analyze} articles ({start_index + 1} to {end_index})")
+            st.success(f" Will analyze **{articles_to_analyze}** articles (articles {start_index + 1} to {end_index})")
             
             # Analysis button
             if st.button(" Start AI Analysis", type="primary", key="analyze"):
                 with st.spinner(f" AI analyzing {articles_to_analyze} articles for private sector companies..."):
                     # Extract companies using enhanced Groq processing with range
                     companies_data = scout.extract_companies_with_enhanced_groq(
-                        st.session_state.articles, 
+                        articles, 
                         start_index=start_index, 
                         end_index=end_index
                     )
@@ -1082,7 +1111,7 @@ def main():
         
         # Business insights
         if ranked_companies:
-            st.header(" Business Insights for WiFi Sales")
+            st.header(" Business Insights")
             
             # Top companies by relevance
             top_companies = ranked_companies[:5]
