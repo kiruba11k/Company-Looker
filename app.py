@@ -800,6 +800,16 @@ If no private sector companies found, return: {{"companies": []}}"""
 def main():
     st.title(" AI Company Scout ")
     
+    # Initialize session state
+    if 'articles' not in st.session_state:
+        st.session_state.articles = None
+    if 'search_complete' not in st.session_state:
+        st.session_state.search_complete = False
+    if 'analysis_complete' not in st.session_state:
+        st.session_state.analysis_complete = False
+    if 'ranked_companies' not in st.session_state:
+        st.session_state.ranked_companies = None
+    
     if not st.secrets.get("GROQ_API_KEY"):
         st.error("Groq API key required (free at https://console.groq.com)")
         st.info("""
@@ -854,59 +864,70 @@ def main():
     
     st.header(" Company Discovery")
     
-    if st.button(" Start Comprehensive Search", type="primary", use_container_width=True):
-        if not selected_sectors:
-            st.error(" Please select at least one sector")
-            return
-            
-        if not project_types:
-            st.error("Please select at least one project type")
-            return
-        
-        if not selected_sources:
-            st.error("Please select at least one news source")
-            return
-        
-        # Generate targeted search queries
-        search_queries = scout.get_search_queries(selected_sectors, project_types)
-        
-        st.info(f" Using {len(search_queries)} targeted queries across {len(selected_sectors)} sectors and {len(selected_sources)} sources")
-        
-        with st.spinner(" Comprehensive multi-source search in progress..."):
-            # Perform hybrid search
-            articles = scout.hybrid_search(search_queries, max_per_source, selected_sources)
-            
-            if not articles:
-                st.error("""
-                 No articles found. Possible issues:
-                - Internet connectivity
-                - Search engines temporarily unavailable
-                - Try different sectors or reduce query complexity
-                """)
+    # Search section
+    if not st.session_state.search_complete:
+        if st.button(" Start Comprehensive Search", type="primary", use_container_width=True):
+            if not selected_sectors:
+                st.error(" Please select at least one sector")
+                return
+                
+            if not project_types:
+                st.error("Please select at least one project type")
                 return
             
-            st.success(f" Found {len(articles)} articles from {len(selected_sources)} sources")
+            if not selected_sources:
+                st.error("Please select at least one news source")
+                return
             
-            # Display ALL found articles before AI analysis
-            scout.display_found_articles(articles)
+            # Generate targeted search queries
+            search_queries = scout.get_search_queries(selected_sectors, project_types)
             
-            # Show search summary
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                source_counts = pd.DataFrame(articles)['source'].value_counts()
-                st.metric("Total Sources", len(source_counts))
-            with col2:
-                st.metric("Total Articles", len(articles))
-            with col3:
-                st.metric("Date Range", "Jan 2024+")
-        
+            st.info(f" Using {len(search_queries)} targeted queries across {len(selected_sectors)} sectors and {len(selected_sources)} sources")
+            
+            with st.spinner(" Comprehensive multi-source search in progress..."):
+                # Perform hybrid search
+                articles = scout.hybrid_search(search_queries, max_per_source, selected_sources)
+                
+                if not articles:
+                    st.error("""
+                     No articles found. Possible issues:
+                    - Internet connectivity
+                    - Search engines temporarily unavailable
+                    - Try different sectors or reduce query complexity
+                    """)
+                    return
+                
+                # Store articles in session state
+                st.session_state.articles = articles
+                st.session_state.search_complete = True
+                
+                st.success(f" Found {len(articles)} articles from {len(selected_sources)} sources")
+                
+                # Display ALL found articles before AI analysis
+                scout.display_found_articles(articles)
+                
+                # Show search summary
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    source_counts = pd.DataFrame(articles)['source'].value_counts()
+                    st.metric("Total Sources", len(source_counts))
+                with col2:
+                    st.metric("Total Articles", len(articles))
+                with col3:
+                    st.metric("Date Range", "Jan 2024+")
+            
+            # Rerun to show the analysis section
+            st.rerun()
+    
+    # Show analysis section if search is complete
+    if st.session_state.search_complete and st.session_state.articles is not None:
         # Add a separator before AI analysis
         st.markdown("---")
         st.header("🤖 AI Analysis Phase")
         
         # Range selection for article analysis
         st.subheader(" Article Analysis Range")
-        total_articles = len(articles)
+        total_articles = len(st.session_state.articles)
         
         col1, col2 = st.columns(2)
         with col1:
@@ -922,158 +943,174 @@ def main():
                 "End analysis at article:", 
                 min_value=1, 
                 max_value=total_articles, 
-                value=min(100, total_articles),
+                value=min(50, total_articles),  # Default to 50 or total articles if less
                 help="Ending index of articles to analyze (exclusive)"
             )
         
         if start_index >= end_index:
             st.error("Start index must be less than end index")
-            return
+        else:
+            articles_to_analyze = end_index - start_index
+            st.info(f"Will analyze {articles_to_analyze} articles ({start_index + 1} to {end_index})")
             
-        articles_to_analyze = end_index - start_index
-        st.info(f"Will analyze {articles_to_analyze} articles ({start_index + 1} to {end_index})")
-        
-        if st.button(" Start AI Analysis", type="primary", key="analyze"):
-            with st.spinner(f" AI analyzing {articles_to_analyze} articles for private sector companies..."):
-                # Extract companies using enhanced Groq processing with range
-                companies_data = scout.extract_companies_with_enhanced_groq(
-                    articles, 
-                    start_index=start_index, 
-                    end_index=end_index
-                )
-                
-                if not companies_data:
-                    st.error("""
-                     No private sector companies extracted. This could mean:
-                    - Articles are about government projects
-                    - News doesn't contain specific company information
-                    - Try expanding sector selection
-                    - Increase number of articles analyzed
-                    """)
-                    return
-                
-                # Filter and rank companies
-                ranked_companies = scout.filter_and_rank_companies(companies_data)
-                
-                st.success(f" Found {len(ranked_companies)} private sector companies across {len(set(c['Sector'] for c in ranked_companies))} sectors!")
-            
-            # Display comprehensive results
-            st.header(" Private Sector Discovery Results")
-            
-            # Statistics
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                st.metric("Articles Analyzed", articles_to_analyze)
-            with col2:
-                st.metric("Companies Found", len(ranked_companies))
-            with col3:
-                greenfield_count = len([c for c in ranked_companies if c['Project Type'] == 'Greenfield'])
-                st.metric("Greenfield", greenfield_count)
-            with col4:
-                brownfield_count = len([c for c in ranked_companies if c['Project Type'] == 'Brownfield'])
-                st.metric("Brownfield", brownfield_count)
-            
-            # Sector distribution
-            if ranked_companies:
-                sectors_count = {}
-                for company in ranked_companies:
-                    sector = company['Sector']
-                    sectors_count[sector] = sectors_count.get(sector, 0) + 1
-                
-                st.subheader(" Sector Distribution")
-                sector_df = pd.DataFrame(list(sectors_count.items()), columns=['Sector', 'Count'])
-                st.bar_chart(sector_df.set_index('Sector'))
-            
-            # Company details table
-            st.subheader(" Company Details (Private Sector Only)")
-            df = pd.DataFrame(ranked_companies)
-            
-            # Enhanced color coding
-            def color_project_type(val):
-                if val == 'Greenfield':
-                    return 'background-color: #90EE90; color: black; font-weight: bold;'
-                elif val == 'Brownfield':
-                    return 'background-color: #FFB6C1; color: black; font-weight: bold;'
-                return ''
-            
-            def color_confidence(val):
-                if val == 'high':
-                    return 'color: green; font-weight: bold'
-                elif val == 'medium':
-                    return 'color: orange'
-                else:
-                    return 'color: red'
-            
-            def color_sector(val):
-                priority_sectors = ['manufacturing', 'warehouse', 'data centre', 'logistics park']
-                if any(priority in val.lower() for priority in priority_sectors):
-                    return 'background-color: #FFD700; color: black; font-weight: bold;'
-                return ''
-            
-            def color_timeline(val):
-                if any(time_indicator in str(val).lower() for time_indicator in ['2024', '2025', 'q1', 'q2', 'q3', 'q4']):
-                    return 'background-color: #ADD8E6; color: black; font-weight: bold;'
-                return ''
-            
-            styled_df = df.style.map(color_confidence, subset=['Confidence'])\
-                              .map(color_project_type, subset=['Project Type'])\
-                              .map(color_sector, subset=['Sector'])\
-                              .map(color_timeline, subset=['Detailed Timeline'])
-            
-            st.dataframe(
-                styled_df,
-                column_config={
-                    "Source Link": st.column_config.LinkColumn("Source Link"),
-                    "Relevance Score": st.column_config.ProgressColumn(
-                        "Relevance",
-                        help="How relevant this company is to your search",
-                        format="%f",
-                        min_value=0,
-                        max_value=10,
+            # Analysis button
+            if st.button(" Start AI Analysis", type="primary", key="analyze"):
+                with st.spinner(f" AI analyzing {articles_to_analyze} articles for private sector companies..."):
+                    # Extract companies using enhanced Groq processing with range
+                    companies_data = scout.extract_companies_with_enhanced_groq(
+                        st.session_state.articles, 
+                        start_index=start_index, 
+                        end_index=end_index
                     )
-                },
-                use_container_width=True,
-                hide_index=True,
-                height=600
-            )
-            
-            # TSV Output
-            st.subheader(" TSV Output - Copy Ready")
-            tsv_output = scout.generate_tsv_output(ranked_companies)
-            st.code(tsv_output, language='text')
-            
-            # Download button
-            st.download_button(
-                label=" Download Complete TSV",
-                data=tsv_output,
-                file_name=f"private_sector_companies_{datetime.now().strftime('%Y%m%d_%H%M')}.tsv",
-                mime="text/tab-separated-values",
-                use_container_width=True
-            )
-            
-            # Business insights
-            if ranked_companies:
-                st.header(" Business Insights for WiFi Sales")
-                
-                # Top companies by relevance
-                top_companies = ranked_companies[:5]
-                
-                st.subheader(" Top 5 Private Sector Prospects")
-                for i, company in enumerate(top_companies):
-                    with st.expander(f"{i+1}. {company['Company Name']} - {company['Sector']}"):
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            st.write(f"**Project:** {company['Core Intent']}")
-                            st.write(f"**Type:** {company['Project Type']}")
-                            st.write(f"**Stage:** {company['Stage']}")
-                            st.write(f"**Timeline:** {company.get('Detailed Timeline', 'Not specified')}")
-                        with col2:
-                            st.write(f"**Confidence:** {company['Confidence']}")
-                            st.write(f"**Relevance Score:** {company['Relevance Score']}/10")
-                            st.write(f"**Source:** [View Article]({company['Source Link']})")
+                    
+                    if not companies_data:
+                        st.error("""
+                         No private sector companies extracted. This could mean:
+                        - Articles are about government projects
+                        - News doesn't contain specific company information
+                        - Try expanding sector selection
+                        - Increase number of articles analyzed
+                        """)
+                    else:
+                        # Filter and rank companies
+                        ranked_companies = scout.filter_and_rank_companies(companies_data)
+                        st.session_state.ranked_companies = ranked_companies
+                        st.session_state.analysis_complete = True
                         
-                        # WiFi sales insight
-                        st.info(f"**WiFi Opportunity:** {company['Company Name']} is perfect for your {company['Project Type'].lower()} WiFi solutions in the {company['Sector']} sector. Timeline: {company.get('Detailed Timeline', 'To be determined')}")
+                        st.success(f" Found {len(ranked_companies)} private sector companies across {len(set(c['Sector'] for c in ranked_companies))} sectors!")
+                        
+                        # Rerun to show results
+                        st.rerun()
+    
+    # Show results if analysis is complete
+    if st.session_state.analysis_complete and st.session_state.ranked_companies is not None:
+        # Display comprehensive results
+        st.header(" Private Sector Discovery Results")
+        
+        ranked_companies = st.session_state.ranked_companies
+        
+        # Statistics
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("Articles Analyzed", articles_to_analyze)
+        with col2:
+            st.metric("Companies Found", len(ranked_companies))
+        with col3:
+            greenfield_count = len([c for c in ranked_companies if c['Project Type'] == 'Greenfield'])
+            st.metric("Greenfield", greenfield_count)
+        with col4:
+            brownfield_count = len([c for c in ranked_companies if c['Project Type'] == 'Brownfield'])
+            st.metric("Brownfield", brownfield_count)
+        
+        # Sector distribution
+        if ranked_companies:
+            sectors_count = {}
+            for company in ranked_companies:
+                sector = company['Sector']
+                sectors_count[sector] = sectors_count.get(sector, 0) + 1
+            
+            st.subheader(" Sector Distribution")
+            sector_df = pd.DataFrame(list(sectors_count.items()), columns=['Sector', 'Count'])
+            st.bar_chart(sector_df.set_index('Sector'))
+        
+        # Company details table
+        st.subheader(" Company Details (Private Sector Only)")
+        df = pd.DataFrame(ranked_companies)
+        
+        # Enhanced color coding
+        def color_project_type(val):
+            if val == 'Greenfield':
+                return 'background-color: #90EE90; color: black; font-weight: bold;'
+            elif val == 'Brownfield':
+                return 'background-color: #FFB6C1; color: black; font-weight: bold;'
+            return ''
+        
+        def color_confidence(val):
+            if val == 'high':
+                return 'color: green; font-weight: bold'
+            elif val == 'medium':
+                return 'color: orange'
+            else:
+                return 'color: red'
+        
+        def color_sector(val):
+            priority_sectors = ['manufacturing', 'warehouse', 'data centre', 'logistics park']
+            if any(priority in val.lower() for priority in priority_sectors):
+                return 'background-color: #FFD700; color: black; font-weight: bold;'
+            return ''
+        
+        def color_timeline(val):
+            if any(time_indicator in str(val).lower() for time_indicator in ['2024', '2025', 'q1', 'q2', 'q3', 'q4']):
+                return 'background-color: #ADD8E6; color: black; font-weight: bold;'
+            return ''
+        
+        styled_df = df.style.map(color_confidence, subset=['Confidence'])\
+                          .map(color_project_type, subset=['Project Type'])\
+                          .map(color_sector, subset=['Sector'])\
+                          .map(color_timeline, subset=['Detailed Timeline'])
+        
+        st.dataframe(
+            styled_df,
+            column_config={
+                "Source Link": st.column_config.LinkColumn("Source Link"),
+                "Relevance Score": st.column_config.ProgressColumn(
+                    "Relevance",
+                    help="How relevant this company is to your search",
+                    format="%f",
+                    min_value=0,
+                    max_value=10,
+                )
+            },
+            use_container_width=True,
+            hide_index=True,
+            height=600
+        )
+        
+        # TSV Output
+        st.subheader(" TSV Output - Copy Ready")
+        tsv_output = scout.generate_tsv_output(ranked_companies)
+        st.code(tsv_output, language='text')
+        
+        # Download button
+        st.download_button(
+            label=" Download Complete TSV",
+            data=tsv_output,
+            file_name=f"private_sector_companies_{datetime.now().strftime('%Y%m%d_%H%M')}.tsv",
+            mime="text/tab-separated-values",
+            use_container_width=True
+        )
+        
+        # Business insights
+        if ranked_companies:
+            st.header(" Business Insights for WiFi Sales")
+            
+            # Top companies by relevance
+            top_companies = ranked_companies[:5]
+            
+            st.subheader(" Top 5 Private Sector Prospects")
+            for i, company in enumerate(top_companies):
+                with st.expander(f"{i+1}. {company['Company Name']} - {company['Sector']}"):
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.write(f"**Project:** {company['Core Intent']}")
+                        st.write(f"**Type:** {company['Project Type']}")
+                        st.write(f"**Stage:** {company['Stage']}")
+                        st.write(f"**Timeline:** {company.get('Detailed Timeline', 'Not specified')}")
+                    with col2:
+                        st.write(f"**Confidence:** {company['Confidence']}")
+                        st.write(f"**Relevance Score:** {company['Relevance Score']}/10")
+                        st.write(f"**Source:** [View Article]({company['Source Link']})")
+                    
+                    # WiFi sales insight
+                    st.info(f"**WiFi Opportunity:** {company['Company Name']} is perfect for your {company['Project Type'].lower()} WiFi solutions in the {company['Sector']} sector. Timeline: {company.get('Detailed Timeline', 'To be determined')}")
+        
+        # Reset button
+        if st.button(" Start New Search", type="secondary"):
+            st.session_state.articles = None
+            st.session_state.search_complete = False
+            st.session_state.analysis_complete = False
+            st.session_state.ranked_companies = None
+            st.rerun()
 
     else:
         # Enhanced instructions
